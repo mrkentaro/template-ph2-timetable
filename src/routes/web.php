@@ -1,4 +1,4 @@
-<?php
+s<?php
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TimetableController;
@@ -8,26 +8,28 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// Week3：授業一覧
-Route::get('/timetable', [
-    TimetableController::class,
-    'index'
+// W3
+Route::get('/timetable', [TimetableController::class, 'index']);
+
+// W4
+Route::get('/entries', [TimetableEntryController::class, 'index']);
+Route::get('/entries/create', [TimetableEntryController::class, 'create']);
+Route::post('/entries', [TimetableEntryController::class, 'store']);
+
+// Week5：編集画面
+Route::get('/entries/{id}/edit', [
+    TimetableEntryController::class,
+    'edit'
 ]);
 
-// Week4：自分の時間割一覧
-Route::get('/entries', [
+// Week5：編集内容の保存
+Route::put('/entries/{id}', [
     TimetableEntryController::class,
-    'index'
+    'update'
 ]);
 
-// Week5：授業の新規登録フォーム
-Route::get('/entries/create', [
+// Week5：授業の削除
+Route::delete('/entries/{id}', [
     TimetableEntryController::class,
-    'create'
-]);
-
-// Week5：授業の新規登録
-Route::post('/entries', [
-    TimetableEntryController::class,
-    'store'
+    'destroy'
 ]);
