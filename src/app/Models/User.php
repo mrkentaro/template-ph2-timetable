@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -46,9 +46,29 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
-
-    public function entries(): HasMany
+    public function entries()
     {
         return $this->hasMany(TimetableEntry::class);
     }
+    // ★追加① 自分が履修している授業
+public function courses()
+{
+    return $this->belongsToMany(
+        Course::class,
+        'timetable_entries',
+        'user_id',
+        'course_id'
+    );
+}
+
+// ★追加② 自分が気になる登録した授業
+public function favoriteCourses()
+{
+    return $this->belongsToMany(
+        Course::class,
+        'favorites',
+        'user_id',
+        'course_id'
+    );
+}
 }

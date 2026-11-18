@@ -14,7 +14,11 @@ class TimetableEntryController extends Controller
         $entries = $request->user()
             ->entries()
             ->select('timetable_entries.*')
-            ->with('course')
+            ->with([
+            'course' => function ($query) {
+            $query->withCount('students');
+            }
+            ])
             ->join('courses', 'courses.id', '=', 'timetable_entries.course_id')
             ->orderBy('courses.day')
             ->orderBy('courses.period')
