@@ -2,93 +2,47 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>授業の新規登録</title>
     <style>
-        body { font-family: sans-serif; margin: 40px; }
-        .field { margin-bottom: 20px; }
-        label { display: block; margin-bottom: 6px; }
-        input { padding: 8px; width: 250px; }
-        .error { color: red; margin-top: 5px; }
+        body { color: #1f2937; font-family: sans-serif; margin: 40px; }
+        main { max-width: 720px; }
+        nav { display: flex; gap: 16px; margin-bottom: 28px; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; }
+        select { box-sizing: border-box; font-size: 16px; max-width: 100%; padding: 10px; width: 520px; }
+        button { background: #2563eb; border: 0; border-radius: 4px; color: white; cursor: pointer; margin-top: 20px; padding: 10px 20px; }
+        .error { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; padding: 12px; }
     </style>
 </head>
 <body>
-    <h1>授業の新規登録</h1>
+    <main>
+        <nav>
+            <a href="{{ url('/entries') }}">自分の時間割</a>
+            <a href="{{ url('/courses') }}">授業一覧</a>
+        </nav>
 
-    <form action="{{ url('/entries') }}" method="POST">
-        @csrf
+        <h1>授業の新規登録</h1>
 
-        <div class="field">
-            <label for="day">曜日（1〜5）</label>
+        @error('course_id')
+            <p class="error">{{ $message }}</p>
+        @enderror
 
-            <input
-                type="number"
-                id="day"
-                name="day"
-                min="1"
-                max="5"
-                value="{{ old('day') }}"
-                required
-            >
+        <form action="{{ url('/entries') }}" method="POST">
+            @csrf
 
-            @error('day')
-                <p class="error">{{ $message }}</p>
-            @enderror
-        </div>
+            <label for="course_id">登録する授業</label>
+            <select id="course_id" name="course_id" required>
+                <option value="">授業を選択してください</option>
+                @foreach ($courses as $course)
+                    <option value="{{ $course->id }}" @selected(old('course_id') == $course->id)>
+                        {{ $course->day_name }}{{ $course->period }}限
+                        {{ $course->name }}（{{ $course->teacher ?? '担当未定' }}）
+                    </option>
+                @endforeach
+            </select>
 
-        <div class="field">
-            <label for="period">時限（1〜6）</label>
-
-            <input
-                type="number"
-                id="period"
-                name="period"
-                min="1"
-                max="6"
-                value="{{ old('period') }}"
-                required
-            >
-
-            @error('period')
-                <p class="error">{{ $message }}</p>
-            @enderror
-        </div>
-
-        <div class="field">
-            <label for="title">授業名</label>
-
-            <input
-                type="text"
-                id="title"
-                name="title"
-                value="{{ old('title') }}"
-                required
-            >
-
-            @error('title')
-                <p class="error">{{ $message }}</p>
-            @enderror
-        </div>
-
-        <div class="field">
-            <label for="room">教室（任意）</label>
-
-            <input
-                type="text"
-                id="room"
-                name="room"
-                value="{{ old('room') }}"
-            >
-
-            @error('room')
-                <p class="error">{{ $message }}</p>
-            @enderror
-        </div>
-
-        <button type="submit">登録する</button>
-
-        <a href="{{ url('/entries') }}">
-            一覧に戻る
-        </a>
-    </form>
+            <button type="submit">登録する</button>
+        </form>
+    </main>
 </body>
 </html>

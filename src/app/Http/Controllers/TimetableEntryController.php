@@ -2,105 +2,86 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Course;
 use App\Models\TimetableEntry;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class TimetableEntryController extends Controller
 {
-    // 一覧表示
     public function index()
     {
-        $entries = TimetableEntry::orderBy('day')
-            ->orderBy('period')
+        $entries = TimetableEntry::query()
+            ->select('timetable_entries.*')
+            ->with('course')
+            ->join('courses', 'courses.id', '=', 'timetable_entries.course_id')
+            ->orderBy('courses.day')
+            ->orderBy('courses.period')
+            ->orderBy('courses.code')
             ->get();
 
         return view('entries.index', [
-            'entries' => $entries
+            'entries' => $entries,
         ]);
     }
 
-    // 新規登録画面
     public function create()
     {
-        return view('entries.create');
+        $courses = Course::query()
+            ->orderBy('day')
+            ->orderBy('period')
+            ->orderBy('code')
+            ->get();
+
+        return view('entries.create', [
+            'courses' => $courses,
+        ]);
     }
 
-    // 新規登録処理
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'day' => [
+            'course_id' => [
+                'bail',
                 'required',
                 'integer',
-                'between:1,5',
-                Rule::unique('timetable_entries', 'day')
-                    ->where('period', $request->input('period')),
+                Rule::exists('courses', 'id'),
+                Rule::unique('timetable_entries', 'course_id'),
             ],
-            'period' => ['required', 'integer', 'between:1,6'],
-            'title' => ['required', 'string', 'max:255'],
-            'room' => ['nullable', 'string', 'max:255'],
         ], [
-            'day.required' => '曜日は1〜5で入力してください',
-            'day.integer' => '曜日は1〜5で入力してください',
-            'day.between' => '曜日は1〜5で入力してください',
-            'day.unique' => 'その曜日・時限にはすでに授業が登録されています',
-
-            'period.required' => '時限は1〜6で入力してください',
-            'period.integer' => '時限は1〜6で入力してください',
-            'period.between' => '時限は1〜6で入力してください',
-
-            'title.required' => '授業名を入力してください',
-            'title.string' => '授業名を入力してください',
-            'title.max' => '授業名は255文字以内で入力してください',
-
-            'room.string' => '教室名を正しく入力してください',
-            'room.max' => '教室名は255文字以内で入力してください',
+            'course_id.required' => '授業を一覧から選んでください',
+            'course_id.integer' => '授業を一覧から選んでください',
+            'course_id.exists' => '授業を一覧から選んでください',
+            'course_id.unique' => 'この授業はすでに登録されています',
         ]);
+
+        $course = Course::findOrFail($validated['course_id']);
+
+        $sameTimeEntryExists = TimetableEntry::whereHas(
+            'course',
+            fn ($query) => $query
+                ->where('day', $course->day)
+                ->where('period', $course->period)
+        )->exists();
+
+        if ($sameTimeEntryExists) {
+            throw ValidationException::withMessages([
+                'course_id' => 'その曜日・時限にはすでに授業が登録されています',
+            ]);
+        }
 
         TimetableEntry::create($validated);
 
-        return redirect('/entries');
+        return redirect('/entries')->with('success', '授業を登録しました');
     }
 
-    // 編集画面
-    public function edit(int $id)
-    {
-        $entry = TimetableEntry::findOrFail($id);
-
-        return view('entries.edit', [
-            'entry' => $entry
-        ]);
-    }
-
-    // 編集内容の保存
-    public function update(Request $request, int $id)
-    {
-        $entry = TimetableEntry::findOrFail($id);
-
-        $validated = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
-            'room' => ['nullable', 'string', 'max:255'],
-        ], [
-            'title.required' => '授業名を入力してください',
-            'title.string' => '授業名を入力してください',
-            'title.max' => '授業名は255文字以内で入力してください',
-            'room.string' => '教室名を正しく入力してください',
-            'room.max' => '教室名は255文字以内で入力してください',
-        ]);
-
-        $entry->update($validated);
-
-        return redirect('/entries');
-    }
-
-    // 削除処理
     public function destroy(int $id)
     {
         $entry = TimetableEntry::findOrFail($id);
 
         $entry->delete();
 
-        return redirect('/entries');
+        return redirect('/entries')->with('success', '授業を削除しました');
     }
 }
