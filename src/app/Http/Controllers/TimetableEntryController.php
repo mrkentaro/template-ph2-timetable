@@ -2,86 +2,63 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Course;
 use App\Models\TimetableEntry;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Gate;
 
 class TimetableEntryController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $entries = TimetableEntry::query()
-            ->select('timetable_entries.*')
-            ->with('course')
-            ->join('courses', 'courses.id', '=', 'timetable_entries.course_id')
-            ->orderBy('courses.day')
-            ->orderBy('courses.period')
-            ->orderBy('courses.code')
-            ->get();
+        // 曜日順・時限順に授業を取得
+        $entries = $request->user()
+        ->entries()
+        ->with('course')
+        ->get();
 
+        // 取得した授業をBladeへ渡す
         return view('entries.index', [
-            'entries' => $entries,
+            'entries' => $entries
         ]);
     }
 
     public function create()
     {
-        $courses = Course::query()
-            ->orderBy('day')
-            ->orderBy('period')
-            ->orderBy('code')
-            ->get();
-
-        return view('entries.create', [
-            'courses' => $courses,
-        ]);
+        // 授業の新規登録フォームを表示
+        return view('entries.create');
     }
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'course_id' => [
-                'bail',
-                'required',
-                'integer',
-                Rule::exists('courses', 'id'),
-                Rule::unique('timetable_entries', 'course_id'),
-            ],
-        ], [
-            'course_id.required' => '授業を一覧から選んでください',
-            'course_id.integer' => '授業を一覧から選んでください',
-            'course_id.exists' => '授業を一覧から選んでください',
-            'course_id.unique' => 'この授業はすでに登録されています',
+        // 入力値を検証し、登録に使う値だけを取得
+        $request->user()->entries()->create([
+            'course_id' => $course->id,
         ]);
-
-        $course = Course::findOrFail($validated['course_id']);
-
-        $sameTimeEntryExists = TimetableEntry::whereHas(
-            'course',
-            fn ($query) => $query
-                ->where('day', $course->day)
-                ->where('period', $course->period)
-        )->exists();
-
-        if ($sameTimeEntryExists) {
-            throw ValidationException::withMessages([
-                'course_id' => 'その曜日・時限にはすでに授業が登録されています',
-            ]);
-        }
+        
+        
+        $validated = $request->validate([
+            'day' => ['required', 'integer', 'between:1,5'],
+            'period' => ['required', 'integer', 'between:1,6'],
+            'title' => ['required', 'string', 'max:255'],
+            'room' => ['nullable', 'string', 'max:255'],
+        ]);
 
         TimetableEntry::create($validated);
 
-        return redirect('/entries')->with('success', '授業を登録しました');
+        return redirect('/entries');
     }
-
-    public function destroy(int $id)
+    public function destroy($id)
     {
+        // ① 削除対象を取得
         $entry = TimetableEntry::findOrFail($id);
 
+        // ② 削除してよいユーザーか確認
+        Gate::authorize('delete', $entry);
+
+        // ③ 許可された場合だけ削除
         $entry->delete();
 
-        return redirect('/entries')->with('success', '授業を削除しました');
+        // ④ 時間割画面に戻る
+        return redirect('/entries');
     }
 }
