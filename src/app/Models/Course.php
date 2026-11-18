@@ -25,4 +25,36 @@ class Course extends Model
             default => '不明',
         };
     }
+    // ① この授業に付いているタグ
+public function tags()
+{
+    return $this->belongsToMany(
+        Tag::class,
+        'course_tag',
+        'course_id',
+        'tag_id'
+    );
+}
+
+// ② この授業を履修している学生
+public function students()
+{
+    return $this->belongsToMany(
+        User::class,
+        'timetable_entries',
+        'course_id',
+        'user_id'
+    );
+}
+
+// ③ この授業を気になる登録したユーザー
+public function favoritedByUsers()
+{
+    return $this->belongsToMany(
+        User::class,
+        'favorites',
+        'course_id',
+        'user_id'
+    );
+}
 }

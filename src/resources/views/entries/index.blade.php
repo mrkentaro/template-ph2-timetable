@@ -49,6 +49,9 @@
                         <td>{{ $entry->course->day_name }}</td>
                         <td>{{ $entry->course->period }}限</td>
                         <td>{{ $entry->course->name }}</td>
+                            <span>
+                            （受講者：{{ $entry->course->students_count }}人）
+                            </span>
                         <td>{{ $entry->course->teacher ?? '未定' }}</td>
                         <td>{{ $entry->course->room }}</td>
                         <td>
