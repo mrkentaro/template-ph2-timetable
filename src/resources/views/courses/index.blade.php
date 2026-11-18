@@ -14,6 +14,8 @@
         button { background: #2563eb; border: 0; border-radius: 4px; color: white; cursor: pointer; padding: 8px 14px; }
         button[disabled] { background: #9ca3af; cursor: default; }
         .error { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; padding: 12px; }
+        .course-link { color: #2563eb; text-decoration: underline; }
+        .course-link:hover { color: #1d4ed8; }
     </style>
 </head>
 <body>
@@ -46,27 +48,52 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach ($courses as $course)
+            <form method="GET" action="/courses">
+
+            <input
+            type="text"
+            name="q"
+            value="{{ request('q') }}"
+            placeholder="授業名・教員名で検索"
+            >
+
+            <button type="submit">検索</button>
+
+            </form>    
+            
+            
+            @foreach ($courses as $course)
                     <tr>
                         <td>{{ $course->day_name }}</td>
                         <td>{{ $course->period }}限</td>
                         <td>{{ $course->code }}</td>
-                        <td>{{ $course->name }}</td>
+
+                        <!-- 授業名をクリックすると詳細画面へ -->
+                        <td>
+                            <a class="course-link"
+                            href="{{ url('/courses/' . $course->id) }}">
+                                {{ $course->name }}
+                            </a>
+                        </td>
+
                         <td>{{ $course->teacher ?? '未定' }}</td>
                         <td>{{ $course->room }}</td>
+
                         <td>
                             @if (in_array($course->id, $registeredIds, true))
                                 <button type="button" disabled>登録済み</button>
                             @else
                                 <form action="{{ url('/entries') }}" method="POST">
                                     @csrf
-                                    <input type="hidden" name="course_id" value="{{ $course->id }}">
+                                    <input type="hidden"
+                                        name="course_id"
+                                        value="{{ $course->id }}">
                                     <button type="submit">登録</button>
                                 </form>
                             @endif
                         </td>
                     </tr>
-                @endforeach
+            @endforeach
             </tbody>
         </table>
     </main>

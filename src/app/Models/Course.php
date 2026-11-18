@@ -25,4 +25,9 @@ class Course extends Model
             default => '不明',
         };
     }
+// ★追加するコード
+public function reviews()
+{
+    return $this->hasMany(Review::class);
+}
 }
