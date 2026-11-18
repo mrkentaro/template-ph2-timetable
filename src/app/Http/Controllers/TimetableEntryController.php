@@ -3,16 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Models\Course;
-use App\Models\TimetableEntry;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class TimetableEntryController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $entries = TimetableEntry::query()
+        $entries = $request->user()
+            ->entries()
             ->select('timetable_entries.*')
             ->with('course')
             ->join('courses', 'courses.id', '=', 'timetable_entries.course_id')
@@ -47,7 +47,8 @@ class TimetableEntryController extends Controller
                 'required',
                 'integer',
                 Rule::exists('courses', 'id'),
-                Rule::unique('timetable_entries', 'course_id'),
+                Rule::unique('timetable_entries', 'course_id')
+                    ->where(fn ($query) => $query->where('user_id', $request->user()->id)),
             ],
         ], [
             'course_id.required' => '授業を一覧から選んでください',
@@ -58,12 +59,15 @@ class TimetableEntryController extends Controller
 
         $course = Course::findOrFail($validated['course_id']);
 
-        $sameTimeEntryExists = TimetableEntry::whereHas(
-            'course',
-            fn ($query) => $query
-                ->where('day', $course->day)
-                ->where('period', $course->period)
-        )->exists();
+        $sameTimeEntryExists = $request->user()
+            ->entries()
+            ->whereHas(
+                'course',
+                fn ($query) => $query
+                    ->where('day', $course->day)
+                    ->where('period', $course->period)
+            )
+            ->exists();
 
         if ($sameTimeEntryExists) {
             throw ValidationException::withMessages([
@@ -71,14 +75,14 @@ class TimetableEntryController extends Controller
             ]);
         }
 
-        TimetableEntry::create($validated);
+        $request->user()->entries()->create($validated);
 
         return redirect('/entries')->with('success', '授業を登録しました');
     }
 
-    public function destroy(int $id)
+    public function destroy(Request $request, int $id)
     {
-        $entry = TimetableEntry::findOrFail($id);
+        $entry = $request->user()->entries()->findOrFail($id);
 
         $entry->delete();
 

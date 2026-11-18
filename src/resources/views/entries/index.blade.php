@@ -8,6 +8,9 @@
         body { color: #1f2937; font-family: sans-serif; margin: 40px; }
         main { max-width: 1000px; }
         nav { display: flex; gap: 16px; margin-bottom: 28px; }
+        .user-bar { align-items: center; display: flex; justify-content: space-between; margin-bottom: 24px; }
+        .logout-form { display: block; }
+        .logout-button { background: #4b5563; }
         table { border-collapse: collapse; width: 100%; }
         th, td { border: 1px solid #d1d5db; padding: 12px; text-align: left; }
         th { background: #eff6ff; }
@@ -24,7 +27,13 @@
             <a href="{{ url('/courses') }}">授業一覧</a>
         </nav>
 
-        <h1>自分の時間割</h1>
+        <div class="user-bar">
+            <h1>{{ auth()->user()->name }}さんの時間割</h1>
+            <form class="logout-form" action="{{ route('logout') }}" method="POST">
+                @csrf
+                <button class="logout-button" type="submit">ログアウト</button>
+            </form>
+        </div>
 
         @if (session('success'))
             <p class="notice">{{ session('success') }}</p>

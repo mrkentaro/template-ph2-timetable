@@ -55,7 +55,7 @@
                         <td>{{ $course->teacher ?? '未定' }}</td>
                         <td>{{ $course->room }}</td>
                         <td>
-                            @if ($course->timetableEntries->isNotEmpty())
+                            @if (in_array($course->id, $registeredIds, true))
                                 <button type="button" disabled>登録済み</button>
                             @else
                                 <form action="{{ url('/entries') }}" method="POST">
