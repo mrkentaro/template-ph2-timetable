@@ -15,4 +15,14 @@ class TimetableEntry extends Model
     {
         return $this->belongsTo(Course::class);
     }
+    public function user()
+    {
+    return $this->belongsTo(User::class);
+    }
+    protected function casts(): array
+    {
+    return [
+        'decided_at' => 'datetime',
+    ];
+    }
 }
