@@ -79,8 +79,8 @@
 
         <!-- W8：授業名・教員名の検索 -->
         <form class="search-form"
-              method="GET"
-              action="{{ url('/courses') }}">
+            method="GET"
+            action="{{ url('/courses') }}">
 
             <input
                 type="text"
@@ -92,8 +92,8 @@
             <!-- タグ選択中は検索時にも引き継ぐ -->
             @if (request()->filled('tag'))
                 <input type="hidden"
-                       name="tag"
-                       value="{{ request('tag') }}">
+                    name="tag"
+                    value="{{ request('tag') }}">
             @endif
 
             <button type="submit">検索</button>

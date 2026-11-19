@@ -3,23 +3,27 @@
 namespace App\Http\Controllers;
 
 use App\Models\Course;
+use App\Models\TimetableEntry;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Gate;
 
 class TimetableEntryController extends Controller
 {
+    // ① 自分の時間割を表示
     public function index(Request $request)
     {
         $entries = $request->user()
             ->entries()
             ->select('timetable_entries.*')
-            ->with([
-            'course' => function ($query) {
-            $query->withCount('students');
-            }
-            ])
-            ->join('courses', 'courses.id', '=', 'timetable_entries.course_id')
+            ->with('course')
+            ->join(
+                'courses',
+                'courses.id',
+                '=',
+                'timetable_entries.course_id'
+            )
             ->orderBy('courses.day')
             ->orderBy('courses.period')
             ->orderBy('courses.code')
@@ -30,6 +34,7 @@ class TimetableEntryController extends Controller
         ]);
     }
 
+    // ② 授業登録画面を表示
     public function create()
     {
         $courses = Course::query()
@@ -43,6 +48,7 @@ class TimetableEntryController extends Controller
         ]);
     }
 
+    // ③ 履修を申請する
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -51,45 +57,80 @@ class TimetableEntryController extends Controller
                 'required',
                 'integer',
                 Rule::exists('courses', 'id'),
-                Rule::unique('timetable_entries', 'course_id')
-                    ->where(fn ($query) => $query->where('user_id', $request->user()->id)),
             ],
         ], [
             'course_id.required' => '授業を一覧から選んでください',
             'course_id.integer' => '授業を一覧から選んでください',
             'course_id.exists' => '授業を一覧から選んでください',
-            'course_id.unique' => 'この授業はすでに登録されています',
         ]);
 
-        $course = Course::findOrFail($validated['course_id']);
+        $course = Course::findOrFail(
+            $validated['course_id']
+        );
 
+        // 同じ授業をすでに申請・登録しているか
+        $alreadyApplied = $request->user()
+            ->entries()
+            ->where('course_id', $course->id)
+            ->exists();
+
+        if ($alreadyApplied) {
+            throw ValidationException::withMessages([
+                'course_id' =>
+                    'この授業はすでに申請済み、または履修履歴があります。',
+            ]);
+        }
+
+        // 自分の時間割で曜日・時限が重複していないか
         $sameTimeEntryExists = $request->user()
             ->entries()
-            ->whereHas(
-                'course',
-                fn ($query) => $query
+            ->whereIn('status', ['pending', 'approved'])
+            ->whereHas('course', function ($query) use ($course) {
+                $query
                     ->where('day', $course->day)
-                    ->where('period', $course->period)
-            )
+                    ->where('period', $course->period);
+            })
             ->exists();
 
         if ($sameTimeEntryExists) {
             throw ValidationException::withMessages([
-                'course_id' => 'その曜日・時限にはすでに授業が登録されています',
+                'course_id' =>
+                    'その曜日・時限にはすでに授業が申請・登録されています。',
             ]);
         }
 
-        $request->user()->entries()->create($validated);
+        // ログインユーザーの申請として保存
+        $request->user()
+            ->entries()
+            ->create([
+                'course_id' => $course->id,
+                'status' => 'pending',
+            ]);
 
-        return redirect('/entries')->with('success', '授業を登録しました');
+        return redirect('/entries')
+            ->with('success', '履修を申請しました');
     }
 
-    public function destroy(Request $request, int $id)
+    // ④ 申請中の授業を取り消す
+    public function destroy(Request $request, $id)
     {
-        $entry = $request->user()->entries()->findOrFail($id);
+        // 削除対象を取得
+        $entry = TimetableEntry::findOrFail($id);
 
+        // 本人以外は403で拒否
+        Gate::authorize('delete', $entry);
+
+        // 申請中か確認
+        if ($entry->status !== 'pending') {
+            return back()->withErrors([
+                'entry' => '申請中の授業だけ取り消せます。',
+            ]);
+        }
+
+        // 申請を削除
         $entry->delete();
 
-        return redirect('/entries')->with('success', '授業を削除しました');
+        return redirect('/entries')
+            ->with('success', '申請を取り消しました。');
     }
 }
