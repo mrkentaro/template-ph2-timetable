@@ -44,7 +44,11 @@ class Course extends Model
         'timetable_entries',
         'course_id',
         'user_id'
-        );
+        )->wherePivot('status', 'approved');
+    public function announcements()
+{
+    return $this->hasMany(Announcement::class);
+}
     }
 
     // ③ この授業を気になる登録したユーザー

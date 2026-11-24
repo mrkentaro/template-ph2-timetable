@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Gate;
+use App\Models\Announcement;
 
 class TimetableEntryController extends Controller
 {
@@ -17,7 +18,12 @@ class TimetableEntryController extends Controller
         $entries = $request->user()
             ->entries()
             ->select('timetable_entries.*')
-            ->with('course')
+            ->with([
+            'course' => function ($query) {
+                $query->withCount('students');
+            }
+            ])
+
             ->join(
                 'courses',
                 'courses.id',
@@ -28,9 +34,26 @@ class TimetableEntryController extends Controller
             ->orderBy('courses.period')
             ->orderBy('courses.code')
             ->get();
+        $recentAnnouncements = Announcement::query()
+
+        ->whereIn(
+        'course_id',
+        $request->user()->entries()
+            ->where('status', 'approved')
+            ->select('course_id')
+        )
+
+        ->where('created_at', '>=', now()->subDay())
+
+        ->with('course')
+
+        ->latest()
+
+        ->get();
 
         return view('entries.index', [
             'entries' => $entries,
+            'recentAnnouncements' => $recentAnnouncements,
         ]);
     }
 

@@ -76,6 +76,39 @@
         </nav>
 
         <h1>授業一覧</h1>
+        <section>
+
+        <h2>最近のお知らせ（24時間以内）</h2>
+
+        @forelse ($recentAnnouncements as $announcement)
+
+        <article>
+
+            <h3>
+                <a href="/courses/{{ $announcement->course_id }}">
+                    {{ $announcement->course->name }}
+                </a>
+            </h3>
+
+            <strong>
+                {{ $announcement->title }}
+            </strong>
+
+            <p>{{ $announcement->body }}</p>
+
+            <small>
+                {{ $announcement->created_at->format('Y/m/d H:i') }}
+            </small>
+
+        </article>
+
+        @empty
+
+        <p>最近のお知らせはありません。</p>
+
+        @endforelse
+
+        </section>
 
         <!-- W8：授業名・教員名の検索 -->
         <form class="search-form"
