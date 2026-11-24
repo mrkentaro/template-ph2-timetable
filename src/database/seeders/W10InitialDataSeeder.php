@@ -11,15 +11,15 @@ class W10InitialDataSeeder extends Seeder
 {
     public function run(): void
     {
-        // 管理者がいなければ作成、いれば更新
-        $admin = User::firstOrNew([
-            'email' => 'admin@example.com'
-        ]);
-
-        $admin->name = '教務課';
-        $admin->password = Hash::make('password123');
-        $admin->is_admin = true;
-        $admin->save();
+        // 同じメールアドレスの管理者がいれば更新し、重複作成しない
+        User::updateOrCreate(
+            ['email' => 'admin@example.com'],
+            [
+                'name' => '教務課',
+                'password' => Hash::make('password123'),
+                'is_admin' => true,
+            ]
+        );
 
         // ゼミSE300の定員を3人にする
         DB::table('courses')

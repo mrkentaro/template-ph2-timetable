@@ -20,6 +20,7 @@ class TimetableOwnershipTest extends TestCase
             $table->string('name');
             $table->string('email')->unique();
             $table->string('password');
+            $table->boolean('is_admin')->default(false);
             $table->rememberToken();
             $table->timestamps();
         });
@@ -34,14 +35,35 @@ class TimetableOwnershipTest extends TestCase
             $table->string('room');
             $table->integer('credits');
             $table->boolean('required');
+            $table->integer('capacity')->default(40);
         });
 
         Schema::create('timetable_entries', function (Blueprint $table) {
             $table->id();
             $table->foreignId('course_id');
             $table->foreignId('user_id');
+            $table->string('status')->default('pending');
+            $table->timestamp('decided_at')->nullable();
             $table->timestamps();
             $table->unique(['user_id', 'course_id']);
+        });
+
+        Schema::create('tags', function (Blueprint $table) {
+            $table->id();
+            $table->string('name')->unique();
+            $table->timestamps();
+        });
+
+        Schema::create('course_tag', function (Blueprint $table) {
+            $table->foreignId('course_id');
+            $table->foreignId('tag_id');
+            $table->primary(['course_id', 'tag_id']);
+        });
+
+        Schema::create('favorites', function (Blueprint $table) {
+            $table->foreignId('user_id');
+            $table->foreignId('course_id');
+            $table->primary(['user_id', 'course_id']);
         });
 
         $this->insertCourse(1, 'CS101', 'プログラミング入門', 1, 1);
@@ -99,7 +121,7 @@ class TimetableOwnershipTest extends TestCase
 
         $this->actingAs($secondUser)
             ->delete('/entries/'.$entry->id)
-            ->assertNotFound();
+            ->assertForbidden();
 
         $this->assertDatabaseHas('timetable_entries', ['id' => $entry->id]);
     }
