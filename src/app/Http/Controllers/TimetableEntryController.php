@@ -7,7 +7,7 @@ use App\Models\TimetableEntry;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\DB;
 
 class TimetableEntryController extends Controller
 {
@@ -112,25 +112,33 @@ class TimetableEntryController extends Controller
     }
 
     // ④ 申請中の授業を取り消す
+    
     public function destroy(Request $request, $id)
     {
-        // 削除対象を取得
-        $entry = TimetableEntry::findOrFail($id);
+    return DB::transaction(function () use ($request, $id) {
 
-        // 本人以外は403で拒否
-        Gate::authorize('delete', $entry);
+        // 最新の申請データを取得してロックする
+        $entry = TimetableEntry::whereKey($id)
+            ->lockForUpdate()
+            ->firstOrFail();
 
-        // 申請中か確認
+        // 本人以外は403
+        if ((int) $entry->user_id !== (int) $request->user()->id) {
+            abort(403, '他人の申請は取り消せません。');
+        }
+
+        // pending以外は取り消せない
         if ($entry->status !== 'pending') {
             return back()->withErrors([
                 'entry' => '申請中の授業だけ取り消せます。',
             ]);
         }
 
-        // 申請を削除
+        // 申請を取り消す
         $entry->delete();
 
         return redirect('/entries')
             ->with('success', '申請を取り消しました。');
+        });
     }
 }

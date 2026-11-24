@@ -9,6 +9,7 @@ class TimetableEntry extends Model
 {
     protected $fillable = [
         'course_id',
+        'status',
     ];
 
     public function course(): BelongsTo
