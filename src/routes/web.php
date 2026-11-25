@@ -5,6 +5,8 @@ use App\Http\Controllers\TimetableController;
 use App\Http\Controllers\TimetableEntryController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AdminEntryController;
+use App\Http\Controllers\AnnouncementController;
+use App\Http\Controllers\AuthController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -12,12 +14,18 @@ Route::get('/', function () {
 
 Route::get('/timetable', [TimetableController::class, 'index']);
 
-Route::get('/entries', [TimetableEntryController::class, 'index']);
+Route::get('/entries', [TimetableEntryController::class, 'index'])
+    ->middleware('auth');
 Route::get('/entries/create', [TimetableEntryController::class, 'create']);
 Route::post('/entries', [TimetableEntryController::class, 'store']);
 Route::delete('/entries/{id}', [TimetableEntryController::class, 'destroy']);
 
 Route::get('/courses', [CourseController::class, 'index']);
+// Week11：授業詳細ページ
+Route::get('/courses/{course}', [
+    CourseController::class,
+    'show'
+]);
 // 管理者専用ページ
 Route::middleware(['auth', 'admin'])
     ->prefix('admin')
@@ -52,3 +60,22 @@ Route::delete('/entries/{id}', [
     TimetableEntryController::class,
     'destroy'
 ])->middleware('auth');
+
+// Week11：管理者のみがお知らせを投稿できる
+Route::post('/courses/{course}/announcements', [
+    AnnouncementController::class,
+    'store'
+])->middleware(['auth', 'admin']);
+// 未ログインユーザー用
+Route::middleware('guest')->group(function () {
+    Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
+    Route::post('/register', [AuthController::class, 'register']);
+
+    Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+    Route::post('/login', [AuthController::class, 'login']);
+});
+
+// ログイン済みユーザー用
+Route::post('/logout', [AuthController::class, 'logout'])
+    ->middleware('auth')
+    ->name('logout');
