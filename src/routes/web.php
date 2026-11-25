@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AdminEntryController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ReviewController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -79,3 +80,13 @@ Route::middleware('guest')->group(function () {
 Route::post('/logout', [AuthController::class, 'logout'])
     ->middleware('auth')
     ->name('logout');
+// レビューの投稿・削除（ログイン必須）
+Route::middleware('auth')->group(function () {
+    Route::post('/courses/{course}/reviews', [
+        ReviewController::class, 'store'
+    ]);
+
+    Route::delete('/reviews/{review}', [
+        ReviewController::class, 'destroy'
+    ]);
+});

@@ -51,4 +51,9 @@ class User extends Authenticatable
     {
     return $this->hasMany(TimetableEntry::class);
     }
+    // このユーザーが投稿したレビュー
+    public function reviews()
+    {
+    return $this->hasMany(Review::class);
+    }
 }
