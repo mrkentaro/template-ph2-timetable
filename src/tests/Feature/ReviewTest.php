@@ -89,6 +89,17 @@ class ReviewTest extends TestCase
         $this->assertDatabaseCount('reviews', 0);
     }
 
+    public function test_guest_cannot_post_a_review(): void
+    {
+        $course = $this->course();
+
+        $this->post('/courses/'.$course->id.'/reviews', [
+            'body' => '未ログインの投稿',
+        ])->assertRedirect('/login');
+
+        $this->assertDatabaseCount('reviews', 0);
+    }
+
     public function test_review_with_1000_characters_is_saved(): void
     {
         $student = $this->user('student@example.com');
