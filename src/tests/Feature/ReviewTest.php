@@ -5,48 +5,13 @@ namespace Tests\Feature;
 use App\Models\Course;
 use App\Models\Review;
 use App\Models\User;
-use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class ReviewTest extends TestCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        Schema::create('users', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('email')->unique();
-            $table->string('password');
-            $table->boolean('is_admin')->default(false);
-            $table->rememberToken();
-            $table->timestamps();
-        });
-
-        Schema::create('courses', function (Blueprint $table) {
-            $table->id();
-            $table->string('code')->unique();
-            $table->string('name');
-            $table->string('teacher')->nullable();
-            $table->integer('day');
-            $table->integer('period');
-            $table->string('room')->nullable();
-            $table->integer('credits');
-            $table->boolean('required');
-            $table->integer('capacity')->default(40);
-        });
-
-        Schema::create('reviews', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('user_id');
-            $table->foreignId('course_id');
-            $table->text('body');
-            $table->timestamps();
-        });
-    }
+    use DatabaseTransactions;
 
     public function test_other_user_cannot_delete_a_review(): void
     {
@@ -86,7 +51,10 @@ class ReviewTest extends TestCase
             ->assertRedirect('/courses/'.$course->id)
             ->assertSessionHasErrors('body');
 
-        $this->assertDatabaseCount('reviews', 0);
+        $this->assertDatabaseMissing('reviews', [
+            'course_id' => $course->id,
+            'body' => '',
+        ]);
     }
 
     public function test_guest_cannot_post_a_review(): void
@@ -97,7 +65,10 @@ class ReviewTest extends TestCase
             'body' => '未ログインの投稿',
         ])->assertRedirect('/login');
 
-        $this->assertDatabaseCount('reviews', 0);
+        $this->assertDatabaseMissing('reviews', [
+            'course_id' => $course->id,
+            'body' => '未ログインの投稿',
+        ]);
     }
 
     public function test_review_with_1000_characters_is_saved(): void
@@ -130,7 +101,10 @@ class ReviewTest extends TestCase
             ->assertRedirect('/courses/'.$course->id)
             ->assertSessionHasErrors('body');
 
-        $this->assertDatabaseCount('reviews', 0);
+        $this->assertDatabaseMissing('reviews', [
+            'course_id' => $course->id,
+            'body' => str_repeat('あ', 1001),
+        ]);
     }
 
     private function user(string $email): User

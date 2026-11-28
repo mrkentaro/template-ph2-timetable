@@ -6,51 +6,14 @@ use App\Models\Course;
 use App\Models\TimetableEntry;
 use App\Models\User;
 use Database\Seeders\W10InitialDataSeeder;
-use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class W10EnrollmentApprovalTest extends TestCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        Schema::create('users', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('email')->unique();
-            $table->string('password');
-            $table->boolean('is_admin')->default(false);
-            $table->rememberToken();
-            $table->timestamps();
-        });
-
-        Schema::create('courses', function (Blueprint $table) {
-            $table->id();
-            $table->string('code')->unique();
-            $table->string('name');
-            $table->string('teacher')->nullable();
-            $table->integer('day');
-            $table->integer('period');
-            $table->string('room')->nullable();
-            $table->integer('credits');
-            $table->boolean('required');
-            $table->integer('capacity')->default(40);
-        });
-
-        Schema::create('timetable_entries', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('course_id');
-            $table->foreignId('user_id');
-            $table->string('status')->default('pending');
-            $table->timestamp('decided_at')->nullable();
-            $table->timestamps();
-            $table->unique(['user_id', 'course_id']);
-        });
-    }
+    use DatabaseTransactions;
 
     public function test_non_admin_cannot_open_or_post_to_admin_approval_routes(): void
     {
@@ -197,7 +160,7 @@ class W10EnrollmentApprovalTest extends TestCase
 
     private function course(string $code = 'CS101', int $capacity = 40): Course
     {
-        DB::table('courses')->insert([
+        $id = DB::table('courses')->insertGetId([
             'code' => $code,
             'name' => $code.' 授業',
             'teacher' => '担当教員',
@@ -209,7 +172,7 @@ class W10EnrollmentApprovalTest extends TestCase
             'capacity' => $capacity,
         ]);
 
-        return Course::where('code', $code)->firstOrFail();
+        return Course::findOrFail($id);
     }
 
     private function entry(
