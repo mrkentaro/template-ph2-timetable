@@ -11,13 +11,13 @@ class Review extends Model
         'body',
     ];
 
-    // レビューを投稿したユーザー
+    // 投稿したユーザーとの関係
     public function user()
     {
         return $this->belongsTo(User::class);
     }
 
-    // レビューが紐づく授業
+    // レビュー対象の授業との関係
     public function course()
     {
         return $this->belongsTo(Course::class);

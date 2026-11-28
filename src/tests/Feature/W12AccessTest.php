@@ -4,99 +4,134 @@ namespace Tests\Feature;
 
 use App\Models\Course;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
-use App\Models\TimetableEntry;
 
 class W12AccessTest extends TestCase
 {
-    // テスト後にDBの変更を取り消す
-    use DatabaseTransactions;
-
-    // ① テスト用DBに接続している
-    public function test_テスト用DBに接続している(): void
+    protected function setUp(): void
     {
-        $this->assertSame(
-            'timetable_test',
-            DB::connection()->getDatabaseName()
-        );
+        parent::setUp();
+
+        Schema::create('users', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('email')->unique();
+            $table->string('password');
+            $table->boolean('is_admin')->default(false);
+            $table->rememberToken();
+            $table->timestamps();
+        });
+
+        Schema::create('courses', function (Blueprint $table) {
+            $table->id();
+            $table->string('code')->unique();
+            $table->string('name');
+            $table->string('teacher')->nullable();
+            $table->integer('day');
+            $table->integer('period');
+            $table->string('room')->nullable();
+            $table->integer('credits');
+            $table->boolean('required');
+            $table->integer('capacity')->default(40);
+        });
+
+        Schema::create('timetable_entries', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('course_id');
+            $table->foreignId('user_id');
+            $table->string('status')->default('pending');
+            $table->timestamp('decided_at')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('announcements', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('course_id');
+            $table->string('title', 100);
+            $table->text('body');
+            $table->timestamps();
+        });
     }
 
-    // ② 未ログインでは時間割を見られない
-    public function test_未ログインでは時間割を見られない(): void
+    public function test_tests_use_an_isolated_in_memory_database(): void
     {
-        $response = $this->get('/entries');
-
-        $response->assertRedirect('/login');
+        $this->assertSame('testing', app()->environment());
+        $this->assertSame('sqlite', DB::connection()->getDriverName());
+        $this->assertSame(':memory:', DB::connection()->getDatabaseName());
     }
 
-    // ③ 一般学生は管理者画面に入れない
-    public function test_学生は管理者画面に入れない(): void
+    public function test_guest_cannot_open_timetable(): void
     {
-        // 準備：一般学生を作る
-        $student = User::factory()->create([
-            'is_admin' => false,
+        $this->get('/entries')->assertRedirect('/login');
+    }
+
+    public function test_student_cannot_open_admin_page(): void
+    {
+        $student = $this->user('student@example.com');
+
+        $this->actingAs($student)
+            ->get('/admin/entries')
+            ->assertForbidden();
+    }
+
+    public function test_admin_can_open_admin_page(): void
+    {
+        $admin = $this->user('admin@example.com', true);
+
+        $this->actingAs($admin)
+            ->get('/admin/entries')
+            ->assertOk();
+    }
+
+    public function test_student_cannot_post_announcement(): void
+    {
+        Mail::fake();
+
+        $student = $this->user('student@example.com');
+        $course = $this->course();
+
+        $this->actingAs($student)
+            ->post('/courses/'.$course->id.'/announcements', [
+                'title' => 'テストのお知らせ',
+                'body' => '学生は投稿できない',
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseCount('announcements', 0);
+        Mail::assertNothingSent();
+    }
+
+    private function user(string $email, bool $isAdmin = false): User
+    {
+        $user = User::create([
+            'name' => 'テストユーザー',
+            'email' => $email,
+            'password' => 'password123',
+        ]);
+        $user->is_admin = $isAdmin;
+        $user->save();
+
+        return $user;
+    }
+
+    private function course(): Course
+    {
+        $id = DB::table('courses')->insertGetId([
+            'code' => 'CS101',
+            'name' => 'プログラミング入門',
+            'teacher' => '担当教員',
+            'day' => 1,
+            'period' => 1,
+            'room' => '教室',
+            'credits' => 2,
+            'required' => true,
+            'capacity' => 40,
         ]);
 
-        // 操作：学生で管理者画面へアクセス
-        $response = $this
-            ->actingAs($student)
-            ->get('/admin/entries');
-
-        // 確認：403で拒否される
-        $response->assertForbidden();
-    }
-
-    // ④ 管理者は管理者画面に入れる
-    public function test_管理者は管理者画面に入れる(): void
-    {
-        // 準備：管理者を作る
-        $admin = User::factory()->create([
-            'is_admin' => true,
-        ]);
-
-        // 操作：管理者でアクセス
-        $response = $this
-            ->actingAs($admin)
-            ->get('/admin/entries');
-
-        // 確認：正常にページが表示される
-        $response->assertOk();
-    }
-
-    // ⑤ 学生はお知らせを投稿できない
-    public function test_学生はお知らせを投稿できない(): void
-    {
-        // 準備：一般学生を作る
-        $student = User::factory()->create([
-            'is_admin' => false,
-        ]);
-
-        // テスト用DBにある授業を取得
-        $course = Course::firstOrFail();
-
-        // 投稿前のお知らせ件数
-        $before = DB::table('announcements')->count();
-
-        // 操作：学生がお知らせを投稿
-        $response = $this
-            ->actingAs($student)
-            ->post(
-                "/courses/{$course->id}/announcements",
-                [
-                    'title' => 'テストのお知らせ',
-                    'body' => '学生は投稿できない',
-                ]
-            );
-
-        // 確認：403で拒否される
-        $response->assertForbidden();
-
-        // DBのお知らせ件数も変わらない
-        $this->assertSame(
-            $before,
-            DB::table('announcements')->count()
-        );
+        return Course::findOrFail($id);
     }
 }

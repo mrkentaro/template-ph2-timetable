@@ -7,11 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 class Announcement extends Model
 {
     protected $fillable = [
+        'course_id',
         'title',
         'body',
     ];
 
-    // お知らせが属する授業
     public function course()
     {
         return $this->belongsTo(Course::class);

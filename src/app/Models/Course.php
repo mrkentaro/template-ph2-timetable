@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Course extends Model
@@ -12,6 +13,52 @@ class Course extends Model
     public function timetableEntries(): HasMany
     {
         return $this->hasMany(TimetableEntry::class);
+    }
+
+    public function approvedEntries(): HasMany
+    {
+        return $this->hasMany(TimetableEntry::class)
+            ->where('status', 'approved');
+    }
+
+    public function announcements(): HasMany
+    {
+        return $this->hasMany(Announcement::class);
+    }
+
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(Review::class);
+    }
+
+    public function tags(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Tag::class,
+            'course_tag',
+            'course_id',
+            'tag_id'
+        );
+    }
+
+    public function students(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            User::class,
+            'timetable_entries',
+            'course_id',
+            'user_id'
+        )->wherePivot('status', 'approved');
+    }
+
+    public function favoritedByUsers(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            User::class,
+            'favorites',
+            'course_id',
+            'user_id'
+        );
     }
 
     public function getDayNameAttribute(): string
@@ -25,46 +72,4 @@ class Course extends Model
             default => '不明',
         };
     }
-    // ① この授業に付いているタグ
-    public function tags()
-    {
-        return $this->belongsToMany(
-        Tag::class,
-        'course_tag',
-        'course_id',
-        'tag_id'
-        );
-    }
-
-    // ② この授業を履修している学生
-    public function students()
-    {
-        return $this->belongsToMany(
-        User::class,
-        'timetable_entries',
-        'course_id',
-        'user_id'
-        )->wherePivot('status', 'approved');
-    }
-
-    // ③ この授業を気になる登録したユーザー
-    public function favoritedByUsers()
-    {
-        return $this->belongsToMany(
-        User::class,
-        'favorites',
-        'course_id',
-        'user_id'
-        );
-    }
-    public function approvedEntries()
-    {
-    return $this->hasMany(TimetableEntry::class)
-        ->where('status', 'approved');
-    }
-    // この授業に紐づくお知らせ
-public function announcements()
-{
-    return $this->hasMany(Announcement::class);
-}
 }

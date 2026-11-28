@@ -8,6 +8,9 @@
         body { color: #1f2937; font-family: sans-serif; margin: 40px; }
         main { max-width: 1000px; }
         nav { display: flex; gap: 16px; margin-bottom: 28px; }
+        .user-bar { align-items: center; display: flex; justify-content: space-between; margin-bottom: 24px; }
+        .logout-form { display: block; }
+        .logout-button { background: #4b5563; }
         table { border-collapse: collapse; width: 100%; }
         th, td { border: 1px solid #d1d5db; padding: 12px; text-align: left; }
         th { background: #eff6ff; }
@@ -24,11 +27,35 @@
             <a href="{{ url('/courses') }}">授業一覧</a>
         </nav>
 
-        <h1>自分の時間割</h1>
+        <div class="user-bar">
+            <h1>{{ auth()->user()->name }}さんの時間割</h1>
+            <form class="logout-form" action="{{ route('logout') }}" method="POST">
+                @csrf
+                <button class="logout-button" type="submit">ログアウト</button>
+            </form>
+        </div>
 
         @if (session('success'))
             <p class="notice">{{ session('success') }}</p>
         @endif
+
+        <section>
+            <h2>最近のお知らせ（24時間以内）</h2>
+
+            @forelse ($recentAnnouncements as $announcement)
+                <article>
+                    <h3>
+                        <a href="{{ url('/courses/' . $announcement->course_id) }}">
+                            {{ $announcement->course->name }}：{{ $announcement->title }}
+                        </a>
+                    </h3>
+                    <p>{{ $announcement->body }}</p>
+                    <small>{{ $announcement->created_at->format('Y/m/d H:i') }}</small>
+                </article>
+            @empty
+                <p>最近のお知らせはありません。</p>
+            @endforelse
+        </section>
 
         <p class="actions"><a href="{{ url('/entries/create') }}">＋ 授業を登録する</a></p>
 
@@ -48,7 +75,10 @@
                     <tr>
                         <td>{{ $entry->course->day_name }}</td>
                         <td>{{ $entry->course->period }}限</td>
-                        <td>{{ $entry->course->name }}</td>
+                        <td>
+                            {{ $entry->course->name }}
+                            <span>（受講者：{{ $entry->course->students_count }}人）</span>
+                        </td>
                         <td>{{ $entry->course->teacher ?? '未定' }}</td>
                         <td>{{ $entry->course->room }}</td>
                         <td>

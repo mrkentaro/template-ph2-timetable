@@ -20,28 +20,28 @@ class ReviewController extends Controller
             'body.max' => 'レビューは1000文字以内で入力してください',
         ]);
 
-        // ② ログイン中のユーザーのレビューとして保存
+        // ② ログイン中のユーザーとして投稿
         $request->user()->reviews()->create([
             'course_id' => $course->id,
             'body' => $validated['body'],
         ]);
 
-        // ③ 授業詳細ページへ戻る
+        // ③ 授業詳細ページに戻る
         return redirect('/courses/' . $course->id);
     }
 
     // レビューを削除する
     public function destroy(Review $review)
     {
-        // ① 投稿者本人か確認する
+        // ① 投稿者本人か確認
         Gate::authorize('delete', $review);
 
-        // ② 授業IDを保存してから削除する
+        // ② 授業IDを保存してから削除
         $courseId = $review->course_id;
 
         $review->delete();
 
-        // ③ 授業詳細ページへ戻る
+        // ③ 授業詳細ページに戻る
         return redirect('/courses/' . $courseId);
     }
 }
