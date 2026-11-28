@@ -7,95 +7,24 @@ use App\Models\Announcement;
 use App\Models\Course;
 use App\Models\TimetableEntry;
 use App\Models\User;
-use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class W11AnnouncementTest extends TestCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        Schema::create('users', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('email')->unique();
-            $table->string('password');
-            $table->boolean('is_admin')->default(false);
-            $table->rememberToken();
-            $table->timestamps();
-        });
-
-        Schema::create('courses', function (Blueprint $table) {
-            $table->id();
-            $table->string('code')->unique();
-            $table->string('name');
-            $table->string('teacher')->nullable();
-            $table->integer('day');
-            $table->integer('period');
-            $table->string('room')->nullable();
-            $table->integer('credits');
-            $table->boolean('required');
-            $table->integer('capacity')->default(40);
-        });
-
-        Schema::create('timetable_entries', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('course_id');
-            $table->foreignId('user_id');
-            $table->string('status')->default('pending');
-            $table->timestamp('decided_at')->nullable();
-            $table->timestamps();
-            $table->unique(['user_id', 'course_id']);
-        });
-
-        Schema::create('announcements', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('course_id');
-            $table->string('title', 100);
-            $table->text('body');
-            $table->timestamps();
-        });
-
-        Schema::create('tags', function (Blueprint $table) {
-            $table->id();
-            $table->string('name')->unique();
-            $table->timestamps();
-        });
-
-        Schema::create('course_tag', function (Blueprint $table) {
-            $table->foreignId('course_id');
-            $table->foreignId('tag_id');
-            $table->primary(['course_id', 'tag_id']);
-        });
-
-        Schema::create('favorites', function (Blueprint $table) {
-            $table->foreignId('user_id');
-            $table->foreignId('course_id');
-            $table->primary(['user_id', 'course_id']);
-        });
-
-        Schema::create('reviews', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('user_id');
-            $table->foreignId('course_id');
-            $table->text('body');
-            $table->timestamps();
-        });
-    }
+    use DatabaseTransactions;
 
     public function test_announcement_is_mailed_only_to_approved_students_of_the_course(): void
     {
         Mail::fake();
 
-        $admin = $this->user('教務課', 'admin@example.com', true);
-        $approved = $this->user('承認済み', 'approved@example.com');
-        $pending = $this->user('申請中', 'pending@example.com');
-        $rejected = $this->user('却下済み', 'rejected@example.com');
-        $other = $this->user('別授業', 'other@example.com');
+        $admin = $this->user('教務課', 'w11-admin@example.com', true);
+        $approved = $this->user('承認済み', 'w11-approved@example.com');
+        $pending = $this->user('申請中', 'w11-pending@example.com');
+        $rejected = $this->user('却下済み', 'w11-rejected@example.com');
+        $other = $this->user('別授業', 'w11-other@example.com');
         $course = $this->course('CS101', 'プログラミング入門', 1);
         $otherCourse = $this->course('DB210', 'データベース論', 2);
 
@@ -119,13 +48,13 @@ class W11AnnouncementTest extends TestCase
         Mail::assertSent(AnnouncementMail::class, 1);
         Mail::assertSent(
             AnnouncementMail::class,
-            fn (AnnouncementMail $mail) => $mail->hasTo('approved@example.com')
+            fn (AnnouncementMail $mail) => $mail->hasTo('w11-approved@example.com')
         );
         Mail::assertNotSent(
             AnnouncementMail::class,
-            fn (AnnouncementMail $mail) => $mail->hasTo('pending@example.com')
-                || $mail->hasTo('rejected@example.com')
-                || $mail->hasTo('other@example.com')
+            fn (AnnouncementMail $mail) => $mail->hasTo('w11-pending@example.com')
+                || $mail->hasTo('w11-rejected@example.com')
+                || $mail->hasTo('w11-other@example.com')
         );
     }
 
@@ -183,7 +112,10 @@ class W11AnnouncementTest extends TestCase
             ])
             ->assertForbidden();
 
-        $this->assertDatabaseCount('announcements', 0);
+        $this->assertDatabaseMissing('announcements', [
+            'course_id' => $course->id,
+            'title' => '不正なお知らせ',
+        ]);
         Mail::assertNothingSent();
     }
 

@@ -12,6 +12,8 @@ use Illuminate\Validation\ValidationException;
 
 class TimetableEntryController extends Controller
 {
+    private const SEMESTER_CREDIT_LIMIT = 24;
+
     public function index(Request $request)
     {
         $entries = $request->user()
@@ -26,6 +28,30 @@ class TimetableEntryController extends Controller
             ->orderBy('courses.day')
             ->orderBy('courses.period')
             ->orderBy('courses.code')
+            ->get();
+
+        // 申請中・却下済みを除き、承認済み授業だけを単位に数える。
+        $totalCredits = $entries
+            ->where('status', 'approved')
+            ->sum(fn (TimetableEntry $entry): int => $entry->course->credits);
+        $creditLimit = self::SEMESTER_CREDIT_LIMIT;
+        $isCreditLimitExceeded = $totalCredits > $creditLimit;
+
+        $userId = $request->user()->id;
+        $missingRequiredCourses = Course::query()
+            ->where('required', true)
+            ->whereDoesntHave('timetableEntries', function ($query) use ($userId) {
+                $query->where('user_id', $userId)
+                    ->where('status', 'approved');
+            })
+            ->with([
+                'timetableEntries' => function ($query) use ($userId) {
+                    $query->where('user_id', $userId);
+                },
+            ])
+            ->orderBy('day')
+            ->orderBy('period')
+            ->orderBy('code')
             ->get();
 
         $recentAnnouncements = Announcement::query()
@@ -43,6 +69,12 @@ class TimetableEntryController extends Controller
         return view('entries.index', [
             'entries' => $entries,
             'recentAnnouncements' => $recentAnnouncements,
+            'totalCredits' => $totalCredits,
+            'creditLimit' => $creditLimit,
+            'isCreditLimitExceeded' => $isCreditLimitExceeded,
+            'remainingCredits' => max(0, $creditLimit - $totalCredits),
+            'excessCredits' => max(0, $totalCredits - $creditLimit),
+            'missingRequiredCourses' => $missingRequiredCourses,
         ]);
     }
 
